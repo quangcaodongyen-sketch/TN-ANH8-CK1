@@ -53,28 +53,4 @@ export class QuizService {
       throw error;
     }
   }
-
-  async enhancePhoto(base64Image: string): Promise<string> {
-    const ai = this.getAI();
-    try {
-      const data = base64Image.split(',')[1] || base64Image;
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            { inlineData: { data: data, mimeType: 'image/jpeg' } },
-            { text: 'Transform this user portrait into a professional, cute student ID card photo with clean school uniform and bright studio lighting. Solid blue background.' }
-          ]
-        }
-      });
-
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-      }
-      throw new Error("No image data returned from AI");
-    } catch (error) {
-      console.error("AI Photo Enhancement Error:", error);
-      throw error;
-    }
-  }
 }

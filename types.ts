@@ -11,7 +11,6 @@ export interface Question {
 
 export enum GameStatus {
   START = 'START',
-  PHOTO_SETUP = 'PHOTO_SETUP',
   LOADING = 'LOADING',
   PLAYING = 'PLAYING',
   FINISHED = 'FINISHED'
@@ -25,5 +24,6 @@ export interface EncouragementMessage {
 export interface UserInfo {
   name: string;
   className: string;
-  photo?: string;
+  gender: 'boy' | 'girl';
+  avatarUrl?: string;
 }
