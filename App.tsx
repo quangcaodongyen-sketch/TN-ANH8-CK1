@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { QuizService } from './services/geminiService';
-import { Question, GameStatus, EncouragementMessage, UserInfo } from './types';
-import { ENCOURAGEMENTS, MOTIVATIONS } from './constants';
-import { useSoundEffects } from './components/SoundEffects';
+import { QuizService } from './services/geminiService.ts';
+import { Question, GameStatus, EncouragementMessage, UserInfo } from './types.ts';
+import { ENCOURAGEMENTS, MOTIVATIONS } from './constants.ts';
+import { useSoundEffects } from './components/SoundEffects.tsx';
 import html2canvas from 'html2canvas';
 import { 
   RotateCcw, 
@@ -54,18 +54,15 @@ const App: React.FC = () => {
     }
   };
 
-  // Hàm khởi động camera
   const startCamera = async () => {
     setUserInfo(prev => ({ ...prev, photo: undefined }));
     setCameraActive(true);
   };
 
-  // Sử dụng hiệu ứng để gắn stream vào video khi cameraActive thay đổi
   useEffect(() => {
     let active = true;
 
     const enableCamera = async () => {
-      // Đợi một nhịp để React render thẻ video
       await new Promise(resolve => setTimeout(resolve, 100));
       
       if (cameraActive && videoRef.current && active) {
@@ -87,7 +84,6 @@ const App: React.FC = () => {
           streamRef.current = stream;
           videoRef.current.srcObject = stream;
           
-          // Quan trọng: Đảm bảo video thực sự phát
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play().catch(e => console.error("Video play error:", e));
           };
@@ -117,13 +113,11 @@ const App: React.FC = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Lấy kích thước thực tế của video stream
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Vẽ ảnh lật ngược (hiệu ứng gương) cho giống preview
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);

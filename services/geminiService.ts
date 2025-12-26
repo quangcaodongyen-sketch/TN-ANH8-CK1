@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Question } from "../types";
-import { CURRICULUM_INFO } from "../constants";
+import { Question } from "../types.ts";
+import { CURRICULUM_INFO } from "../constants.ts";
 
 export class QuizService {
   private ai: GoogleGenAI;
@@ -54,7 +54,6 @@ export class QuizService {
 
   async enhancePhoto(base64Image: string): Promise<string> {
     try {
-      // Remove data URL prefix if exists
       const data = base64Image.split(',')[1] || base64Image;
       
       const response = await this.ai.models.generateContent({
