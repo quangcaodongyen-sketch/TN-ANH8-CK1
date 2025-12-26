@@ -4,13 +4,27 @@ import { Question } from "../types.ts";
 import { CURRICULUM_INFO } from "../constants.ts";
 
 export class QuizService {
-  private ai: GoogleGenAI;
+  private ai: any = null;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Không khởi tạo ngay trong constructor để tránh lỗi crash sớm
+  }
+
+  private initAI() {
+    if (this.ai) return this.ai;
+    
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("API_KEY is currently empty. AI features will be limited.");
+      throw new Error("Ứng dụng chưa nhận được API Key. Vui lòng kiểm tra cấu hình.");
+    }
+    
+    this.ai = new GoogleGenAI({ apiKey });
+    return this.ai;
   }
 
   async generateQuestions(): Promise<Question[]> {
+    const ai = this.initAI();
     const prompt = `
       Hãy tạo 20 câu hỏi trắc nghiệm tiếng Anh lớp 8 chương trình Global Success (Kỳ 1).
       - Nội dung BÁM SÁT SGK Global Success 8.
@@ -21,7 +35,7 @@ export class QuizService {
     `;
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
@@ -53,10 +67,11 @@ export class QuizService {
   }
 
   async enhancePhoto(base64Image: string): Promise<string> {
+    const ai = this.initAI();
     try {
       const data = base64Image.split(',')[1] || base64Image;
       
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
