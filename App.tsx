@@ -11,8 +11,6 @@ import {
   XCircle, 
   Sparkles,
   Zap,
-  BookOpen,
-  User,
   GraduationCap,
   Award,
   Download,
@@ -61,89 +59,58 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let active = true;
-
     const enableCamera = async () => {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       if (cameraActive && videoRef.current && active) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              facingMode: 'user',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            },
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
             audio: false 
           });
-          
           if (!active) {
             stream.getTracks().forEach(t => t.stop());
             return;
           }
-
           streamRef.current = stream;
           videoRef.current.srcObject = stream;
-          
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play().catch(e => console.error("Video play error:", e));
-          };
-          
         } catch (err) {
-          console.error("Lỗi camera:", err);
-          alert("Không thể mở camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng tính năng 'Tải ảnh'.");
+          console.error("Camera error:", err);
+          alert("Không thể mở camera. Bạn hãy chọn 'Tải ảnh' thay thế nhé!");
           setCameraActive(false);
         }
       }
     };
-
-    if (cameraActive) {
-      enableCamera();
-    } else {
-      stopCamera();
-    }
-
-    return () => {
-      active = false;
-      stopCamera();
-    };
+    if (cameraActive) enableCamera();
+    return () => { active = false; stopCamera(); };
   }, [cameraActive]);
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        setUserInfo(prev => ({ ...prev, photo: dataUrl }));
-        stopCamera();
-      }
-    }
-  };
 
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
     setCameraActive(false);
   };
 
-  const retakePhoto = () => {
-    setUserInfo(prev => ({ ...prev, photo: undefined }));
-    startCamera();
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      // Nén ảnh xuống kích thước vừa phải để tránh lỗi payload
+      const maxWidth = 800;
+      const scale = maxWidth / video.videoWidth;
+      canvas.width = maxWidth;
+      canvas.height = video.videoHeight * scale;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setUserInfo(prev => ({ ...prev, photo: dataUrl }));
+        stopCamera();
+      }
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,8 +118,18 @@ const App: React.FC = () => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setUserInfo(prev => ({ ...prev, photo: event.target?.result as string }));
-        stopCamera();
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxWidth = 800;
+          const scale = maxWidth / img.width;
+          canvas.width = maxWidth;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setUserInfo(prev => ({ ...prev, photo: canvas.toDataURL('image/jpeg', 0.8) }));
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -165,7 +142,8 @@ const App: React.FC = () => {
       const enhanced = await quizService.enhancePhoto(userInfo.photo);
       setUserInfo(prev => ({ ...prev, photo: enhanced }));
     } catch (err) {
-      alert("AI đang bận, hãy tiếp tục với ảnh gốc nhé!");
+      console.error(err);
+      alert("AI đang bận một chút, chúng ta dùng ảnh gốc vẫn rất đẹp nhé!");
     } finally {
       setIsEnhancing(false);
     }
@@ -173,7 +151,7 @@ const App: React.FC = () => {
 
   const proceedToQuiz = async () => {
     setStatus(GameStatus.LOADING);
-    setLoadingMsg(`Đang chuẩn bị đề thi cho ${userInfo.name}...`);
+    setLoadingMsg(`Đang soạn đề thi cho ${userInfo.name}...`);
     try {
       const newQuestions = await quizService.generateQuestions();
       setQuestions(newQuestions);
@@ -220,13 +198,22 @@ const App: React.FC = () => {
     if (!certificateRef.current) return;
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(certificateRef.current, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+      // Đợi một chút để ảnh render xong hoàn toàn
+      await new Promise(r => setTimeout(r, 500));
+      const canvas = await html2canvas(certificateRef.current, { 
+        scale: 2, 
+        backgroundColor: '#ffffff', 
+        useCORS: true,
+        logging: false,
+        allowTaint: true
+      });
       const link = document.createElement('a');
       link.download = `Chung_Nhan_${userInfo.name.replace(/\s+/g, '_')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
-      alert('Không thể tải ảnh. Hãy chụp màn hình nhé!');
+      console.error(err);
+      alert('Không thể tải ảnh tự động. Bạn hãy chụp màn hình giấy khen nhé!');
     } finally {
       setIsDownloading(false);
     }
@@ -268,13 +255,7 @@ const App: React.FC = () => {
           
           <div className="aspect-[3/4] max-w-[300px] mx-auto bg-black rounded-[2rem] mb-6 relative overflow-hidden border-4 border-indigo-100 shadow-2xl flex items-center justify-center">
             {cameraActive ? (
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted
-                className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" 
-              />
+              <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
             ) : userInfo.photo ? (
               <img src={userInfo.photo} alt="Preview" className="w-full h-full object-cover" />
             ) : (
@@ -288,53 +269,46 @@ const App: React.FC = () => {
 
             {isEnhancing && (
               <div className="absolute inset-0 bg-indigo-600/90 flex flex-col items-center justify-center z-50">
-                <div className="relative">
-                  <RefreshCw className="w-12 h-12 text-white animate-spin mb-4" />
-                  <Sparkles className="w-6 h-6 text-yellow-300 absolute -top-2 -right-2 animate-pulse" />
-                </div>
-                <p className="text-sm font-black text-white uppercase tracking-widest px-6">AI đang chỉnh sửa ảnh thẻ chuyên nghiệp...</p>
+                <RefreshCw className="w-12 h-12 text-white animate-spin mb-4" />
+                <p className="text-sm font-black text-white uppercase tracking-widest px-6">AI đang xử lý ảnh thẻ...</p>
               </div>
             )}
           </div>
 
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-4">
             {!cameraActive && !userInfo.photo && (
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={startCamera} className="bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-[0_4px_0_rgb(67,56,202)] flex items-center justify-center gap-2 active:translate-y-1 active:shadow-none hover:bg-indigo-700 transition-colors">
-                  <Camera className="w-5 h-5" /> MỞ CAMERA
+                <button onClick={startCamera} className="bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-[0_4px_0_rgb(67,56,202)] flex items-center justify-center gap-2 active:translate-y-1">
+                  <Camera className="w-5 h-5" /> CHỤP ẢNH
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} className="bg-slate-100 text-indigo-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100 hover:bg-white transition-all">
+                <button onClick={() => fileInputRef.current?.click()} className="bg-slate-100 text-indigo-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-100">
                   <Upload className="w-5 h-5" /> TẢI ẢNH
                 </button>
               </div>
             )}
 
             {cameraActive && (
-              <div className="flex flex-col gap-3">
-                 <button onClick={capturePhoto} className="w-full bg-rose-500 text-white font-black py-5 rounded-2xl shadow-[0_6px_0_rgb(225,29,72)] flex items-center justify-center gap-2 active:translate-y-1 active:shadow-none text-xl hover:bg-rose-600">
-                   <Camera className="w-6 h-6" /> BẤM CHỤP ẢNH
-                 </button>
-                 <button onClick={stopCamera} className="text-slate-400 font-bold text-sm uppercase hover:text-rose-500 transition-colors">Thoát Camera</button>
-              </div>
+               <button onClick={capturePhoto} className="w-full bg-rose-500 text-white font-black py-5 rounded-2xl shadow-[0_6px_0_rgb(225,29,72)] flex items-center justify-center gap-2 active:translate-y-1">
+                 <Camera className="w-6 h-6" /> BẤM CHỤP
+               </button>
             )}
 
             {userInfo.photo && !cameraActive && !isEnhancing && (
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={retakePhoto} className="bg-slate-100 text-slate-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 border-2 border-slate-200 hover:bg-slate-200">
-                    <Trash2 className="w-5 h-5" /> CHỤP LẠI
+                  <button onClick={() => setUserInfo({...userInfo, photo: undefined})} className="bg-slate-100 text-slate-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2">
+                    <Trash2 className="w-5 h-5" /> XOÁ ẢNH
                   </button>
-                  <button onClick={enhanceWithAI} className="bg-pink-500 text-white font-black py-4 rounded-2xl shadow-[0_4px_0_rgb(190,24,93)] flex items-center justify-center gap-2 active:translate-y-1 active:shadow-none hover:bg-pink-600">
-                    <Sparkles className="w-5 h-5" /> LÀM ĐẸP AI ✨
+                  <button onClick={enhanceWithAI} className="bg-pink-500 text-white font-black py-4 rounded-2xl shadow-[0_4px_0_rgb(190,24,93)] flex items-center justify-center gap-2 active:translate-y-1">
+                    <Sparkles className="w-5 h-5" /> ĐẸP AI ✨
                   </button>
                 </div>
-                <button onClick={proceedToQuiz} className="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-[0_6px_0_rgb(5,150,105)] flex items-center justify-center gap-3 active:translate-y-1 active:shadow-none text-xl mt-2 hover:bg-emerald-600 transition-colors">
-                  TIẾP TỤC VÀO THI <ArrowRight className="w-6 h-6" />
+                <button onClick={proceedToQuiz} className="w-full bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-[0_6px_0_rgb(5,150,105)] flex items-center justify-center gap-3 active:translate-y-1 text-xl">
+                  VÀO THI NGAY <ArrowRight className="w-6 h-6" />
                 </button>
               </div>
             )}
           </div>
-
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
           <canvas ref={canvasRef} className="hidden" />
         </div>
@@ -346,7 +320,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-6 text-white text-center">
         <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-6" />
-        <p className="text-2xl font-black animate-pulse uppercase max-w-md">{loadingMsg}</p>
+        <p className="text-2xl font-black animate-pulse uppercase">{loadingMsg}</p>
       </div>
     );
   }
@@ -369,19 +343,19 @@ const App: React.FC = () => {
               </div>
               {userInfo.photo && (
                 <div className="w-32 h-40 border-4 border-yellow-500 rounded-lg overflow-hidden shadow-lg rotate-3 ml-6 bg-slate-50">
-                  <img src={userInfo.photo} className="w-full h-full object-cover" alt="Student" />
+                  <img src={userInfo.photo} crossOrigin="anonymous" className="w-full h-full object-cover" alt="Student" />
                 </div>
               )}
             </div>
 
             <div className="max-w-md text-slate-700 leading-relaxed mb-10 text-sm">
-              Đã hoàn thành xuất sắc 20 câu hỏi tiếng Anh chương trình Global Success 8 với kết quả rực rỡ:
+              Đã hoàn thành ôn tập 20 câu hỏi tiếng Anh chương trình Global Success 8 với kết quả:
               <div className="mt-6 flex justify-center gap-8">
-                <div className="bg-indigo-50 px-6 py-2 rounded-xl border border-indigo-100 shadow-sm">
+                <div className="bg-indigo-50 px-6 py-2 rounded-xl border border-indigo-100">
                   <p className="text-[9px] font-black text-indigo-400 uppercase mb-1">Điểm số</p>
                   <p className="text-3xl font-black text-indigo-600">{score}/20</p>
                 </div>
-                <div className="bg-pink-50 px-6 py-2 rounded-xl border border-pink-100 shadow-sm">
+                <div className="bg-pink-50 px-6 py-2 rounded-xl border border-pink-100">
                   <p className="text-[9px] font-black text-pink-400 uppercase mb-1">Xếp loại</p>
                   <p className="text-3xl font-black text-pink-600">{rank}</p>
                 </div>
@@ -390,15 +364,6 @@ const App: React.FC = () => {
 
             <div className="w-full flex justify-between items-end px-10 relative mt-4">
               <div className="text-left text-xs font-bold text-slate-600">Ngày {new Date().toLocaleDateString('vi-VN')}</div>
-              <div className="absolute left-1/2 -translate-x-1/2 -top-12 opacity-70 pointer-events-none">
-                <svg width="100" height="100" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 2" />
-                  <circle cx="50" cy="50" r="38" fill="none" stroke="#dc2626" strokeWidth="1" opacity="0.3" />
-                  <text x="50" y="45" fontFamily="sans-serif" fontSize="6" fill="#dc2626" textAnchor="middle" fontWeight="bold">GLOBAL SUCCESS 8</text>
-                  <text x="50" y="65" fontFamily="sans-serif" fontSize="6" fill="#dc2626" textAnchor="middle" fontWeight="bold">TEACHER THANH</text>
-                  <path d="M40 50L48 58L60 42" fill="none" stroke="#dc2626" strokeWidth="4" strokeLinecap="round" strokeJoin="round" />
-                </svg>
-              </div>
               <div className="text-center">
                 <p className="text-[8px] font-bold uppercase mb-4 text-slate-400">Giáo viên Tiếng Anh</p>
                 <p className="text-4xl font-['Great_Vibes'] text-indigo-900 opacity-90 -rotate-3 mb-1" style={{ fontFamily: "'Great Vibes', cursive" }}>Thanh</p>
@@ -409,10 +374,10 @@ const App: React.FC = () => {
         </div>
 
         <div className="mt-8 flex gap-4 w-full max-w-3xl no-print">
-          <button onClick={downloadCertificate} disabled={isDownloading} className="flex-1 bg-white text-indigo-900 font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50 transition-colors">
-            {isDownloading ? <RefreshCw className="animate-spin" /> : <Download />} TẢI GIẤY KHEN (PNG)
+          <button onClick={downloadCertificate} disabled={isDownloading} className="flex-1 bg-white text-indigo-900 font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
+            {isDownloading ? <RefreshCw className="animate-spin" /> : <Download />} TẢI GIẤY KHEN
           </button>
-          <button onClick={() => window.location.reload()} className="flex-1 bg-indigo-500 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:bg-indigo-600 transition-colors"><RotateCcw /> LÀM LẠI</button>
+          <button onClick={() => window.location.reload()} className="flex-1 bg-indigo-500 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"><RotateCcw /> LÀM LẠI</button>
         </div>
       </div>
     );
@@ -426,21 +391,17 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-indigo-50 flex flex-col items-center p-2 md:p-6 overflow-x-hidden">
       <div className="max-w-2xl w-full mb-4 flex justify-between items-center bg-white p-3 rounded-2xl shadow-md border border-indigo-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-md">{currentIndex + 1}</div>
-          <div className="w-24 md:w-40 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
-            <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 transition-all duration-1000" style={{ width: `${progressPercentage}%` }} />
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xs">{currentIndex + 1}</div>
+          <div className="w-24 md:w-40 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progressPercentage}%` }} />
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-yellow-400 px-4 py-1.5 rounded-full border-b-2 border-yellow-600 shadow-sm text-white font-black text-sm flex items-center gap-1.5">
-            <Zap className="w-3 h-3 fill-white" /> {score}
-          </div>
+        <div className="bg-yellow-400 px-4 py-1.5 rounded-full text-white font-black text-sm flex items-center gap-1.5 shadow-sm">
+          <Zap className="w-3 h-3 fill-white" /> {score}
         </div>
       </div>
 
       <div className="max-w-2xl w-full bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-10 border-b-8 border-indigo-200 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-12 -mt-12 opacity-40" />
-        
         <div className="relative">
            <div className="flex items-center gap-2 mb-4">
              <span className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase">Unit {currentQ.unit}</span>
@@ -451,17 +412,17 @@ const App: React.FC = () => {
            
            <div className="space-y-3 mb-8">
              {currentQ.options.map((option, idx) => {
-               let style = "bg-slate-50 border-slate-100 text-slate-700 hover:border-indigo-300 hover:bg-white";
+               let style = "bg-slate-50 border-slate-100 text-slate-700 hover:border-indigo-300";
                if (isAnswered) {
                  if (idx === currentQ.correctAnswer) style = "bg-emerald-500 border-emerald-600 text-white font-black scale-[1.02] shadow-lg";
                  else if (idx === selectedOption) style = "bg-rose-500 border-rose-600 text-white font-black";
                  else style = "bg-slate-50 border-slate-50 opacity-20 text-slate-400";
                }
                return (
-                 <button key={idx} disabled={isAnswered} onClick={() => handleAnswer(idx)} className={`w-full text-left p-5 md:p-6 rounded-2xl border-4 transition-all flex items-center justify-between group relative overflow-hidden ${style}`}>
+                 <button key={idx} disabled={isAnswered} onClick={() => handleAnswer(idx)} className={`w-full text-left p-5 md:p-6 rounded-2xl border-4 transition-all flex items-center justify-between group overflow-hidden ${style}`}>
                    <span className="text-lg md:text-xl relative z-10">{option}</span>
-                   {isAnswered && idx === currentQ.correctAnswer && <CheckCircle2 className="w-7 h-7 animate-in zoom-in duration-300" />}
-                   {isAnswered && idx === selectedOption && idx !== currentQ.correctAnswer && <XCircle className="w-7 h-7 animate-in zoom-in duration-300" />}
+                   {isAnswered && idx === currentQ.correctAnswer && <CheckCircle2 className="w-7 h-7" />}
+                   {isAnswered && idx === selectedOption && idx !== currentQ.correctAnswer && <XCircle className="w-7 h-7" />}
                  </button>
                );
              })}
@@ -472,14 +433,8 @@ const App: React.FC = () => {
                <div className={`p-5 rounded-2xl text-center font-black text-xl text-white shadow-lg ${feedback?.type === 'success' ? 'bg-emerald-500' : 'bg-orange-400'}`}>
                  {feedback?.text}
                </div>
-               <div className="bg-indigo-50 p-5 rounded-2xl border-l-[6px] border-indigo-400 text-indigo-900 text-sm italic shadow-sm">
+               <div className="bg-indigo-50 p-5 rounded-2xl border-l-[6px] border-indigo-400 text-indigo-900 text-sm italic">
                  <span className="font-black not-italic text-[10px] uppercase bg-indigo-200 px-2 py-0.5 rounded-md mr-2">Giải thích:</span> {currentQ.explanation}
-               </div>
-               <div className="flex items-center justify-center gap-2 pt-2">
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase ml-2 tracking-tighter">Đang chuẩn bị câu tiếp theo...</p>
                </div>
              </div>
            )}

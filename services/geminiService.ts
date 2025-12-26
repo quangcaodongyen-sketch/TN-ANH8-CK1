@@ -4,27 +4,16 @@ import { Question } from "../types.ts";
 import { CURRICULUM_INFO } from "../constants.ts";
 
 export class QuizService {
-  private ai: any = null;
+  constructor() {}
 
-  constructor() {
-    // Không khởi tạo ngay trong constructor để tránh lỗi crash sớm
-  }
-
-  private initAI() {
-    if (this.ai) return this.ai;
-    
+  private getAI() {
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.warn("API_KEY is currently empty. AI features will be limited.");
-      throw new Error("Ứng dụng chưa nhận được API Key. Vui lòng kiểm tra cấu hình.");
-    }
-    
-    this.ai = new GoogleGenAI({ apiKey });
-    return this.ai;
+    if (!apiKey) throw new Error("API Key không tồn tại.");
+    return new GoogleGenAI({ apiKey });
   }
 
   async generateQuestions(): Promise<Question[]> {
-    const ai = this.initAI();
+    const ai = this.getAI();
     const prompt = `
       Hãy tạo 20 câu hỏi trắc nghiệm tiếng Anh lớp 8 chương trình Global Success (Kỳ 1).
       - Nội dung BÁM SÁT SGK Global Success 8.
@@ -58,7 +47,6 @@ export class QuizService {
           }
         }
       });
-
       return JSON.parse(response.text || '[]');
     } catch (error) {
       console.error("Error generating questions:", error);
@@ -67,31 +55,21 @@ export class QuizService {
   }
 
   async enhancePhoto(base64Image: string): Promise<string> {
-    const ai = this.initAI();
+    const ai = this.getAI();
     try {
       const data = base64Image.split(',')[1] || base64Image;
-      
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
-            {
-              inlineData: {
-                data: data,
-                mimeType: 'image/jpeg',
-              },
-            },
-            {
-              text: 'Transform this user portrait into a professional, cute student ID card photo. Enhance the lighting to be natural and bright, smooth the skin texture beautifully, and make the outfit look like a clean, stylish school uniform or appropriate student attire. The background should be a clean, solid professional blue or white. Ensure it looks high quality and charming for a certificate.',
-            },
-          ],
-        },
+            { inlineData: { data: data, mimeType: 'image/jpeg' } },
+            { text: 'Transform this user portrait into a professional, cute student ID card photo with clean school uniform and bright studio lighting. Solid blue background.' }
+          ]
+        }
       });
 
       for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
+        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
       }
       throw new Error("No image data returned from AI");
     } catch (error) {
