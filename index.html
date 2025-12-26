@@ -8,11 +8,10 @@
     <script>
         /**
          * SHIM cho process.env
-         * Giúp tránh lỗi "process is not defined" khi chạy trực tiếp trên trình duyệt
          */
         window.process = window.process || {};
         window.process.env = window.process.env || {};
-        // API_KEY sẽ được platform tự động tiêm vào hoặc lấy từ cài đặt môi trường
+        // Chỉ gán chuỗi rỗng nếu biến chưa tồn tại từ build-step
         if (typeof window.process.env.API_KEY === 'undefined') {
             window.process.env.API_KEY = ""; 
         }

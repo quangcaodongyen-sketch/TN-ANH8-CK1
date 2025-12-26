@@ -15,7 +15,6 @@ import {
   Download,
   ArrowRight,
   RefreshCw,
-  User as UserIcon,
   Smile
 } from 'lucide-react';
 
@@ -55,6 +54,9 @@ const App: React.FC = () => {
 
     try {
       const newQuestions = await quizService.generateQuestions();
+      if (!newQuestions || newQuestions.length === 0) {
+        throw new Error("Dữ liệu câu hỏi bị trống.");
+      }
       setQuestions(newQuestions);
       setCurrentIndex(0);
       setScore(0);
@@ -63,7 +65,8 @@ const App: React.FC = () => {
       setFeedback(null);
       setStatus(GameStatus.PLAYING);
     } catch (error) {
-      alert("Lỗi tải đề. Vui lòng thử lại!");
+      console.error("Lỗi khi bắt đầu thi:", error);
+      alert(`Lỗi tải đề: ${error instanceof Error ? error.message : "Vui lòng kiểm tra lại API Key trên Vercel."}`);
       setStatus(GameStatus.START);
     }
   };
@@ -99,7 +102,7 @@ const App: React.FC = () => {
     if (!certificateRef.current) return;
     setIsDownloading(true);
     try {
-      await new Promise(r => setTimeout(r, 800)); // Đợi SVG nạp đầy đủ
+      await new Promise(r => setTimeout(r, 1000));
       const canvas = await html2canvas(certificateRef.current, { 
         scale: 2, 
         backgroundColor: '#ffffff', 
@@ -160,7 +163,7 @@ const App: React.FC = () => {
             </div>
 
             <button type="submit" className="w-full bg-indigo-600 text-white font-black text-xl py-5 rounded-2xl shadow-[0_6px_0_rgb(67,56,202)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2 mt-4 hover:bg-indigo-700 transition-colors">
-              BẮT ĐẦU THI <ArrowRight />
+              Let's go!... <ArrowRight />
             </button>
           </form>
         </div>
@@ -241,7 +244,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-indigo-50 flex flex-col items-center p-2 md:p-6 overflow-x-hidden">
       <div className="max-w-2xl w-full mb-4 flex justify-between items-center bg-white p-3 rounded-2xl shadow-md border border-indigo-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg border-2 border-indigo-100">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg border-2 border-indigo-100 overflow-hidden">
              <img src={userInfo.avatarUrl} className="w-full h-full p-1" alt="Avatar" />
           </div>
           <div>

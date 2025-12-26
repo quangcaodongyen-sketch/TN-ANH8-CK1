@@ -1,8 +1,5 @@
 {
   "name": "Tiếng Anh 8: Global Success Master",
   "description": "Ứng dụng ôn tập tiếng Anh lớp 8 Global Success với hệ thống câu hỏi thông minh, sinh động và tràn đầy cảm hứng học tập.",
-  "requestFramePermissions": [
-    "microphone",
-    "camera"
-  ]
+  "requestFramePermissions": []
 }
