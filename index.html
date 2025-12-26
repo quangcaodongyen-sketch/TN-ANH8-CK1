@@ -7,14 +7,10 @@
     <title>Tiếng Anh 8 Master</title>
     <script>
         /**
-         * SHIM cho process.env
+         * Khởi tạo process.env cơ bản cho trình duyệt
          */
         window.process = window.process || {};
         window.process.env = window.process.env || {};
-        // Chỉ gán chuỗi rỗng nếu biến chưa tồn tại từ build-step
-        if (typeof window.process.env.API_KEY === 'undefined') {
-            window.process.env.API_KEY = ""; 
-        }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

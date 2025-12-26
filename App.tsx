@@ -55,7 +55,7 @@ const App: React.FC = () => {
     try {
       const newQuestions = await quizService.generateQuestions();
       if (!newQuestions || newQuestions.length === 0) {
-        throw new Error("Dữ liệu câu hỏi bị trống.");
+        throw new Error("Không thể tải danh sách câu hỏi.");
       }
       setQuestions(newQuestions);
       setCurrentIndex(0);
@@ -64,9 +64,10 @@ const App: React.FC = () => {
       setSelectedOption(null);
       setFeedback(null);
       setStatus(GameStatus.PLAYING);
-    } catch (error) {
-      console.error("Lỗi khi bắt đầu thi:", error);
-      alert(`Lỗi tải đề: ${error instanceof Error ? error.message : "Vui lòng kiểm tra lại API Key trên Vercel."}`);
+    } catch (error: any) {
+      console.error("Lỗi khởi chạy:", error);
+      // Hiển thị thông báo lỗi chi tiết để người dùng biết cách xử lý
+      alert(error.message || "Lỗi hệ thống. Vui lòng thử lại sau.");
       setStatus(GameStatus.START);
     }
   };

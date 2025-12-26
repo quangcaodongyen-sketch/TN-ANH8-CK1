@@ -7,11 +7,15 @@ export class QuizService {
   constructor() {}
 
   private getAI() {
+    // Ưu tiên lấy API_KEY trực tiếp từ process.env
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.error("Critical: API_KEY is missing from process.env");
-      throw new Error("Cấu hình API Key không tồn tại.");
+    
+    if (!apiKey || apiKey.trim() === "") {
+      const errorMsg = "API_KEY chưa được cấu hình trên Vercel. Vui lòng vào Settings -> Environment Variables trên Dashboard Vercel để thêm API_KEY.";
+      console.error("Gemini Auth Error:", errorMsg);
+      throw new Error(errorMsg);
     }
+    
     return new GoogleGenAI({ apiKey });
   }
 
